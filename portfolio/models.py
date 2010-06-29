@@ -1,5 +1,11 @@
 from django.db import models
 
+HIDDEN = 0
+LIVE = 1
+NEEDS_APPROVAL = 2
+STATUS_CHOICES = ((HIDDEN, 'Hidden'),
+                  (LIVE, 'Live'),
+                  (NEEDS_APPROVAL, 'Needs Approval'))
 
 class Project(models.Model):
     name = models.CharField(max_length=200)
@@ -44,6 +50,7 @@ class Category(models.Model):
 
     class Meta:
         ordering = ["position"]
+        verbose_name_plural = 'Categories'
 
     def __unicode__(self):
         return self.name
@@ -73,3 +80,32 @@ class ProjectImage(models.Model):
 
     def get_absolute_url(self):
         return self.image.url
+
+class TestimonyManager(models.Manager):
+    """
+    Only return live testimonies.
+    """
+    def get_query_set(self):
+        return super(TestimonyManager, self).get_query_set().filter(status=LIVE)
+    
+class Testimony(models.Model):
+    project = models.ForeignKey(Project, related_name="testimonies")
+    name = models.CharField(max_length=100,
+                            help_text="The name of the person providing the testimony.")
+    from_url = models.URLField(blank=True, null=True,
+                               help_text="(Optional) The URL of the person providing the testimony.")
+    from_company = models.CharField(max_length=100, blank=True, null=True,
+                                    help_text="(Optional) The company of the person providing the testimony.")
+    statement = models.TextField(help_text="The testimony. HTML allowed")
+    status = models.IntegerField(choices=STATUS_CHOICES, default=NEEDS_APPROVAL)
+    date_added = models.DateField(auto_now=True, null=True, blank=True)
+    
+    class Meta:
+        verbose_name_plural = 'Testimonies'
+    
+    def __unicode__(self):
+        return "%s... - %s (%s)" % (self.statement[:35], self.name, self.project)
+    
+    objects = models.Manager()
+    live = TestimonyManager()
+    
